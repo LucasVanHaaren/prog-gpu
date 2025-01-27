@@ -7,6 +7,8 @@
 #include <stdlib.h>
 
 #define PWD_LEN 6
+#define MIN_LEN 4
+#define MAX_LEN 12
 
 static unsigned char from_hex(char c)
 {
@@ -34,33 +36,6 @@ static unsigned char *parse_hash(char *input)
     out[i] = from_hex(hc) * 16 + from_hex(lc);
   }
   return out;
-}
-
-int incr_candidate(char *ptr)
-{
-  ssize_t pos = PWD_LEN - 1;
-  while (1)
-  {
-    if (pos < 0)
-    {
-      return 0;
-    }
-    char c = ++ptr[pos];
-    if (c == '\'')
-    {
-      ptr[pos] = 'a';
-      return 1;
-    }
-    if (c <= '&')
-      return 1;
-    if (c > 'z')
-    {
-      ptr[pos] = '!';
-      pos--;
-    } else {
-      return 1;
-    }
-  }
 }
 
 #endif

@@ -1,28 +1,6 @@
-/*
- * This is an OpenSSL-compatible implementation of the RSA Data Security,
- * Inc. MD4 Message-Digest Algorithm (RFC 1320).
- *
- * Written by Solar Designer <solar at openwall.com> in 2001, and placed
- * in the public domain.  There's absolutely no warranty.
- *
- * This differs from Colin Plumb's older public domain implementation in
- * that no 32-bit integer data type is required, there's no compile-time
- * endianness configuration, and the function prototypes match OpenSSL's.
- * The primary goals are portability and ease of use.
- *
- * This implementation is meant to be fast, but not as fast as possible.
- * Some known optimizations are not included to reduce source code size
- * and avoid compile-time configuration.
- *
- * ... MD4_Final() has been modified in revision of this code found in the
- * JtR jumbo patch, dropping the memset() call.  You will likely want to undo
- * this change if you reuse the code for another purpose.  Or better yet,
- * download the original from:
- * http://openwall.info/wiki/people/solar/software/public-domain-source-code/md4
- */
-
 #include "md4.h"
 #include <string.h>
+#include <stdio.h>
 
 /*
  * The basic MD4 functions.
@@ -38,9 +16,6 @@
 /*
  * The MD4 transformation for all three rounds.
  */
-#define STEP(f, a, b, c, d, x, s) \
-	(a) += f((b), (c), (d)) + (x); \
-	(a) = (((a) << (s)) | (((a) & 0xffffffff) >> (32 - (s))));
 
 /*
  * SET reads 4 input bytes in little-endian byte order and stores them
@@ -50,217 +25,115 @@
  * memory accesses is just an optimization.  Nothing will break if it
  * doesn't work.
  */
-
+#define STEP(f, a, b, c, d, n, s, data, size, constant) \
+    do { \
+        MD4_u32plus x = ((n) < ((size) / 4)) ? data[n] : (((n) == ((size) / 4)) ? 0x80 : 0); \
+        (a) += f((b), (c), (d)) + x + (constant); \
+        (a) = (((a) << (s)) | (((a) & 0xffffffff) >> (32 - (s)))); \
+    } while(0)
+/*
+ * SET reads 4 input bytes in little-endian byte order and stores them
+ * in a properly aligned word in host byte order.
+ *
+ * The check for little-endian architectures that tolerate unaligned
+ * memory accesses is just an optimization.  Nothing will break if it
+ * doesn't work.
+ */
+// To remove
 #define SET(n) \
-	(*(MD4_u32plus *)&ptr[(n) * 4])
+	data[n]
 #define GET(n) \
 	SET(n)
-// #else
-// // permet de set un entier tout en swappant l'endianess
-// // mais comme MD4 est faite pour du LE, et que nos systeme sont en LE on peux set le ARCH_ALLOZ
-// #define SET(n) 
-// 	(ctx->block[(n)] = 
-// 	(MD4_u32plus)ptr[(n) * 4] | 
-// 	((MD4_u32plus)ptr[(n) * 4 + 1] << 8) | 
-// 	((MD4_u32plus)ptr[(n) * 4 + 2] << 16) | 
-// 	((MD4_u32plus)ptr[(n) * 4 + 3] << 24))
-// #define GET(n) 
-	// (ctx->block[(n)])
-// #endif
+
 
 /*
  * This processes one or more 64-byte data blocks, but does NOT update
  * the bit counters.  There are no alignment requirements.
  */
-
-#define BLOC_SIZE 64
-
-const void *body(MD4_CTX *ctx, const void *data)
+void body(MD4_CTX *ctx, const MD4_u32plus *data, unsigned long size)
 {
-	unsigned const char *ptr;
-	MD4_u32plus a, b, c, d;
-	MD4_u32plus saved_a, saved_b, saved_c, saved_d;
+    MD4_u32plus a, b, c, d;
+    MD4_u32plus saved_a, saved_b, saved_c, saved_d;
 
-	ptr = data;
+    a = ctx->A;
+    b = ctx->B;
+    c = ctx->C;
+    d = ctx->D;
 
-	a = ctx->A;
-	b = ctx->B;
-	c = ctx->C;
-	d = ctx->D;
+    do {
+        saved_a = a;
+        saved_b = b;
+        saved_c = c;
+        saved_d = d;
 
-	saved_a = a;
-	saved_b = b;
-	saved_c = c;
-	saved_d = d;
+        /* Round 1 */
+        STEP(F, a, b, c, d, 0, 3, data, size, 0);
+        STEP(F, d, a, b, c, 1, 7, data, size, 0);
+        STEP(F, c, d, a, b, 2, 11, data, size, 0);
+        STEP(F, b, c, d, a, 3, 19, data, size, 0);
+        STEP(F, a, b, c, d, 4, 3, data, size, 0);
+        STEP(F, d, a, b, c, 5, 7, data, size, 0);
+        STEP(F, c, d, a, b, 6, 11, data, size, 0);
+        STEP(F, b, c, d, a, 7, 19, data, size, 0);
+        STEP(F, a, b, c, d, 8, 3, data, size, 0);
+        STEP(F, d, a, b, c, 9, 7, data, size, 0);
+        STEP(F, c, d, a, b, 10, 11, data, size, 0);
+        STEP(F, b, c, d, a, 11, 19, data, size, 0);
+        STEP(F, a, b, c, d, 12, 3, data, size, 0);
+        STEP(F, d, a, b, c, 13, 7, data, size, 0);
+        STEP(F, c, d, a, b, 14, 11, data, size, 0);
+        STEP(F, b, c, d, a, 15, 19, data, size, 0);
 
-	// STEP sert  a melanger les valeurs = rotate
-	/* Round 1 */
-	STEP(F, a, b, c, d, SET(0), 3)
-	STEP(F, d, a, b, c, SET(1), 7)
-	STEP(F, c, d, a, b, SET(2), 11)
-	STEP(F, b, c, d, a, SET(3), 19)
-	STEP(F, a, b, c, d, SET(4), 3)
-	STEP(F, d, a, b, c, SET(5), 7)
-	STEP(F, c, d, a, b, SET(6), 11)
-	STEP(F, b, c, d, a, SET(7), 19)
-	STEP(F, a, b, c, d, SET(8), 3)
-	STEP(F, d, a, b, c, SET(9), 7)
-	STEP(F, c, d, a, b, SET(10), 11)
-	STEP(F, b, c, d, a, SET(11), 19)
-	STEP(F, a, b, c, d, SET(12), 3)
-	STEP(F, d, a, b, c, SET(13), 7)
-	STEP(F, c, d, a, b, SET(14), 11)
-	STEP(F, b, c, d, a, SET(15), 19)
+        /* Round 2 */
+        STEP(G, a, b, c, d, 0, 3, data, size, 0x5a827999);
+        STEP(G, d, a, b, c, 4, 5, data, size, 0x5a827999);
+        STEP(G, c, d, a, b, 8, 9, data, size, 0x5a827999);
+        STEP(G, b, c, d, a, 12, 13, data, size, 0x5a827999);
+        STEP(G, a, b, c, d, 1, 3, data, size, 0x5a827999);
+        STEP(G, d, a, b, c, 5, 5, data, size, 0x5a827999);
+        STEP(G, c, d, a, b, 9, 9, data, size, 0x5a827999);
+        STEP(G, b, c, d, a, 13, 13, data, size, 0x5a827999);
+        STEP(G, a, b, c, d, 2, 3, data, size, 0x5a827999);
+        STEP(G, d, a, b, c, 6, 5, data, size, 0x5a827999);
+        STEP(G, c, d, a, b, 10, 9, data, size, 0x5a827999);
+        STEP(G, b, c, d, a, 14, 13, data, size, 0x5a827999);
+        STEP(G, a, b, c, d, 3, 3, data, size, 0x5a827999);
+        STEP(G, d, a, b, c, 7, 5, data, size, 0x5a827999);
+        STEP(G, c, d, a, b, 11, 9, data, size, 0x5a827999);
+        STEP(G, b, c, d, a, 15, 13, data, size, 0x5a827999);
 
-/* Round 2 */
-	STEP(G, a, b, c, d, GET(0) + 0x5a827999, 3)
-	STEP(G, d, a, b, c, GET(4) + 0x5a827999, 5)
-	STEP(G, c, d, a, b, GET(8) + 0x5a827999, 9)
-	STEP(G, b, c, d, a, GET(12) + 0x5a827999, 13)
-	STEP(G, a, b, c, d, GET(1) + 0x5a827999, 3)
-	STEP(G, d, a, b, c, GET(5) + 0x5a827999, 5)
-	STEP(G, c, d, a, b, GET(9) + 0x5a827999, 9)
-	STEP(G, b, c, d, a, GET(13) + 0x5a827999, 13)
-	STEP(G, a, b, c, d, GET(2) + 0x5a827999, 3)
-	STEP(G, d, a, b, c, GET(6) + 0x5a827999, 5)
-	STEP(G, c, d, a, b, GET(10) + 0x5a827999, 9)
-	STEP(G, b, c, d, a, GET(14) + 0x5a827999, 13)
-	STEP(G, a, b, c, d, GET(3) + 0x5a827999, 3)
-	STEP(G, d, a, b, c, GET(7) + 0x5a827999, 5)
-	STEP(G, c, d, a, b, GET(11) + 0x5a827999, 9)
-	STEP(G, b, c, d, a, GET(15) + 0x5a827999, 13)
+        /* Round 3 */
+        STEP(H, a, b, c, d, 0, 3, data, size, 0x6ed9eba1);
+        STEP(H2, d, a, b, c, 8, 9, data, size, 0x6ed9eba1);
+        STEP(H, c, d, a, b, 4, 11, data, size, 0x6ed9eba1);
+        STEP(H2, b, c, d, a, 12, 15, data, size, 0x6ed9eba1);
+        STEP(H, a, b, c, d, 2, 3, data, size, 0x6ed9eba1);
+        STEP(H2, d, a, b, c, 10, 9, data, size, 0x6ed9eba1);
+        STEP(H, c, d, a, b, 6, 11, data, size, 0x6ed9eba1);
+        STEP(H2, b, c, d, a, 14, 15, data, size, 0x6ed9eba1);
+        STEP(H, a, b, c, d, 1, 3, data, size, 0x6ed9eba1);
+        STEP(H2, d, a, b, c, 9, 9, data, size, 0x6ed9eba1);
+        STEP(H, c, d, a, b, 5, 11, data, size, 0x6ed9eba1);
+        STEP(H2, b, c, d, a, 13, 15, data, size, 0x6ed9eba1);
+        STEP(H, a, b, c, d, 3, 3, data, size, 0x6ed9eba1);
+        STEP(H2, d, a, b, c, 11, 9, data, size, 0x6ed9eba1);
+        STEP(H, c, d, a, b, 7, 11, data, size, 0x6ed9eba1);
+        STEP(H2, b, c, d, a, 15, 15, data, size, 0x6ed9eba1);
 
-/* Round 3 */
-	STEP(H, a, b, c, d, GET(0) + 0x6ed9eba1, 3)
-	STEP(H2, d, a, b, c, GET(8) + 0x6ed9eba1, 9)
-	STEP(H, c, d, a, b, GET(4) + 0x6ed9eba1, 11)
-	STEP(H2, b, c, d, a, GET(12) + 0x6ed9eba1, 15)
-	STEP(H, a, b, c, d, GET(2) + 0x6ed9eba1, 3)
-	STEP(H2, d, a, b, c, GET(10) + 0x6ed9eba1, 9)
-	STEP(H, c, d, a, b, GET(6) + 0x6ed9eba1, 11)
-	STEP(H2, b, c, d, a, GET(14) + 0x6ed9eba1, 15)
-	STEP(H, a, b, c, d, GET(1) + 0x6ed9eba1, 3)
-	STEP(H2, d, a, b, c, GET(9) + 0x6ed9eba1, 9)
-	STEP(H, c, d, a, b, GET(5) + 0x6ed9eba1, 11)
-	STEP(H2, b, c, d, a, GET(13) + 0x6ed9eba1, 15)
-	STEP(H, a, b, c, d, GET(3) + 0x6ed9eba1, 3)
-	STEP(H2, d, a, b, c, GET(11) + 0x6ed9eba1, 9)
-	STEP(H, c, d, a, b, GET(7) + 0x6ed9eba1, 11)
-	STEP(H2, b, c, d, a, GET(15) + 0x6ed9eba1, 15)
+        /* Ajouter les valeurs sauvegardées */
+        a += saved_a;
+        b += saved_b;
+        c += saved_c;
+        d += saved_d;
 
-	a += saved_a;
-	b += saved_b;
-	c += saved_c;
-	d += saved_d;
+        /* Passer au bloc suivant */
+        data += 16; // Avancer de 16 mots de 32 bits (64 octets)
+        size -= 64;
+    } while (size >= 64);
 
-	ptr += 64;
-
-	ctx->A = a;
-	ctx->B = b;
-	ctx->C = c;
-	ctx->D = d;
-
-	return ptr;
-}
-
-// void MD4_Init(MD4_CTX *ctx)
-// {
-// 	ctx->A = 0x67452301;
-// 	ctx->B = 0xefcdab89;
-// 	ctx->C = 0x98badcfe;
-// 	ctx->D = 0x10325476;
-
-// 	ctx->lo = 0;
-// 	ctx->hi = 0;
-// }
-
-void MD4_Update(MD4_CTX *ctx, const void *data, unsigned long size)
-{
-	MD4_u32plus saved_lo;
-	unsigned long used, free;
-
-	ctx->A = 0x67452301;
-	ctx->B = 0xefcdab89;
-	ctx->C = 0x98badcfe;
-	ctx->D = 0x10325476;
-
-	ctx->lo = 0;
-	ctx->hi = 0;
-
-	saved_lo = 0; // toujours 0
-	// hi entre 6 et 12
-	// pour fiare une addition de 2 fois 32 bits 
-	if ((ctx->lo = (saved_lo + size) & 0x1fffffff) < saved_lo)
-		ctx->hi++;
-	ctx->hi += size >> 29;
-
-	used = saved_lo & 0x3f;
-
-	if (used) {
-		free = 64 - used;
-
-		if (size < free) {
-			memcpy(&ctx->buffer[used], data, size);
-			return;
-		}
-
-		memcpy(&ctx->buffer[used], data, free);
-		data = (unsigned char *)data + free;
-		size -= free;
-		body(ctx, ctx->buffer);
-	}
-	memcpy(ctx->buffer, data, size);
-}
-
-void MD4_Final(unsigned char *result, MD4_CTX *ctx)
-{
-	unsigned long used, free;
-
-	used = ctx->lo & 0x3f;
-
-	ctx->buffer[used++] = 0x80; // octet de padding
-
-	free = 64 - used;
-
-	if (free < 8) {
-		memset(&ctx->buffer[used], 0, free);
-		body(ctx, ctx->buffer);
-		used = 0;
-		free = 64;
-	}
-
-	memset(&ctx->buffer[used], 0, free - 8);
-
-	ctx->lo <<= 3;
-	ctx->buffer[56] = ctx->lo;
-	ctx->buffer[57] = ctx->lo >> 8;
-	ctx->buffer[58] = ctx->lo >> 16;
-	ctx->buffer[59] = ctx->lo >> 24;
-	ctx->buffer[60] = ctx->hi;
-	ctx->buffer[61] = ctx->hi >> 8;
-	ctx->buffer[62] = ctx->hi >> 16;
-	ctx->buffer[63] = ctx->hi >> 24;
-
-	body(ctx, ctx->buffer);
-
-	result[0] = ctx->A;
-	result[1] = ctx->A >> 8;
-	result[2] = ctx->A >> 16;
-	result[3] = ctx->A >> 24;
-	result[4] = ctx->B;
-	result[5] = ctx->B >> 8;
-	result[6] = ctx->B >> 16;
-	result[7] = ctx->B >> 24;
-	result[8] = ctx->C;
-	result[9] = ctx->C >> 8;
-	result[10] = ctx->C >> 16;
-	result[11] = ctx->C >> 24;
-	result[12] = ctx->D;
-	result[13] = ctx->D >> 8;
-	result[14] = ctx->D >> 16;
-	result[15] = ctx->D >> 24;
-
-#if 0
-	memset(ctx, 0, sizeof(*ctx));
-#endif
+    /* Mettre à jour le contexte */
+    ctx->A = a;
+    ctx->B = b;
+    ctx->C = c;
+    ctx->D = d;
 }
