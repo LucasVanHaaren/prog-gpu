@@ -42,6 +42,9 @@
 	(a) += f((b), (c), (d)) + (x); \
 	(a) = (((a) << (s)) | (((a) & 0xffffffff) >> (32 - (s))));
 
+static const MD4_u32plus ROUND2_CONSTANT = 0x5a827999;
+static const MD4_u32plus ROUND3_CONSTANT = 0x6ed9eba1;
+
 /*
  * SET reads 4 input bytes in little-endian byte order and stores them
  * in a properly aligned word in host byte order.
@@ -50,21 +53,23 @@
  * memory accesses is just an optimization.  Nothing will break if it
  * doesn't work.
  */
-#if ARCH_ALLOWS_UNALIGNED==1
+// #if ARCH_ALLOWS_UNALIGNED==1
 #define SET(n) \
 	(*(MD4_u32plus *)&ptr[(n) * 4])
 #define GET(n) \
 	SET(n)
-#else
-#define SET(n) \
-	(ctx->block[(n)] = \
-	(MD4_u32plus)ptr[(n) * 4] | \
-	((MD4_u32plus)ptr[(n) * 4 + 1] << 8) | \
-	((MD4_u32plus)ptr[(n) * 4 + 2] << 16) | \
-	((MD4_u32plus)ptr[(n) * 4 + 3] << 24))
-#define GET(n) \
-	(ctx->block[(n)])
-#endif
+// #else
+// // permet de set un entier tout en swappant l'endianess
+// // mais comme MD4 est faite pour du LE, et que nos systeme sont en LE on peux set le ARCH_ALLOW_ALIGNED
+// #define SET(n) \
+// 	(ctx->block[(n)] = \
+// 	(MD4_u32plus)ptr[(n) * 4] | \
+// 	((MD4_u32plus)ptr[(n) * 4 + 1] << 8) | \
+// 	((MD4_u32plus)ptr[(n) * 4 + 2] << 16) | \
+// 	((MD4_u32plus)ptr[(n) * 4 + 3] << 24))
+// #define GET(n) \
+// 	(ctx->block[(n)])
+// #endif
 
 /*
  * This processes one or more 64-byte data blocks, but does NOT update
@@ -73,7 +78,7 @@
 
 #define BLOC_SIZE 64
 
-static const void *body(MD4_CTX *ctx, const void *data)
+const void *body(MD4_CTX *ctx, const void *data)
 {
 	unsigned const char *ptr;
 	MD4_u32plus a, b, c, d;
@@ -91,59 +96,60 @@ static const void *body(MD4_CTX *ctx, const void *data)
 	saved_c = c;
 	saved_d = d;
 
-/* Round 1 */
-	STEP(F, a, b, c, d, SET(0), 3)
-	STEP(F, d, a, b, c, SET(1), 7)
-	STEP(F, c, d, a, b, SET(2), 11)
-	STEP(F, b, c, d, a, SET(3), 19)
-	STEP(F, a, b, c, d, SET(4), 3)
-	STEP(F, d, a, b, c, SET(5), 7)
-	STEP(F, c, d, a, b, SET(6), 11)
-	STEP(F, b, c, d, a, SET(7), 19)
-	STEP(F, a, b, c, d, SET(8), 3)
-	STEP(F, d, a, b, c, SET(9), 7)
-	STEP(F, c, d, a, b, SET(10), 11)
-	STEP(F, b, c, d, a, SET(11), 19)
-	STEP(F, a, b, c, d, SET(12), 3)
-	STEP(F, d, a, b, c, SET(13), 7)
-	STEP(F, c, d, a, b, SET(14), 11)
-	STEP(F, b, c, d, a, SET(15), 19)
+	// STEP sert  a melanger les valeurs = rotate
+	/* Round 1 */
+	STEP(F, a, b, c, d, 0, 3)
+	STEP(F, d, a, b, c, 1, 7)
+	STEP(F, c, d, a, b, 2, 11)
+	STEP(F, b, c, d, a, 3, 19)
+	STEP(F, a, b, c, d, 4, 3)
+	STEP(F, d, a, b, c, 5, 7)
+	STEP(F, c, d, a, b, 6, 11)
+	STEP(F, b, c, d, a, 7, 19)
+	STEP(F, a, b, c, d, 8, 3)
+	STEP(F, d, a, b, c, 9, 7)
+	STEP(F, c, d, a, b, 10, 11)
+	STEP(F, b, c, d, a, 11, 19)
+	STEP(F, a, b, c, d, 12, 3)
+	STEP(F, d, a, b, c, 13, 7)
+	STEP(F, c, d, a, b, 14, 11)
+	STEP(F, b, c, d, a, 15, 19)
 
 /* Round 2 */
-	STEP(G, a, b, c, d, GET(0) + 0x5a827999, 3)
-	STEP(G, d, a, b, c, GET(4) + 0x5a827999, 5)
-	STEP(G, c, d, a, b, GET(8) + 0x5a827999, 9)
-	STEP(G, b, c, d, a, GET(12) + 0x5a827999, 13)
-	STEP(G, a, b, c, d, GET(1) + 0x5a827999, 3)
-	STEP(G, d, a, b, c, GET(5) + 0x5a827999, 5)
-	STEP(G, c, d, a, b, GET(9) + 0x5a827999, 9)
-	STEP(G, b, c, d, a, GET(13) + 0x5a827999, 13)
-	STEP(G, a, b, c, d, GET(2) + 0x5a827999, 3)
-	STEP(G, d, a, b, c, GET(6) + 0x5a827999, 5)
-	STEP(G, c, d, a, b, GET(10) + 0x5a827999, 9)
-	STEP(G, b, c, d, a, GET(14) + 0x5a827999, 13)
-	STEP(G, a, b, c, d, GET(3) + 0x5a827999, 3)
-	STEP(G, d, a, b, c, GET(7) + 0x5a827999, 5)
-	STEP(G, c, d, a, b, GET(11) + 0x5a827999, 9)
-	STEP(G, b, c, d, a, GET(15) + 0x5a827999, 13)
+	STEP(G, a, b, c, d, GET(0) + ROUND2_CONSTANT, 3)
+	STEP(G, d, a, b, c, GET(4) + ROUND2_CONSTANT, 5)
+	STEP(G, c, d, a, b, GET(8) + ROUND2_CONSTANT, 9)
+	STEP(G, b, c, d, a, GET(12) + ROUND2_CONSTANT, 13)
+	STEP(G, a, b, c, d, GET(1) + ROUND2_CONSTANT, 3)
+	STEP(G, d, a, b, c, GET(5) + ROUND2_CONSTANT, 5)
+	STEP(G, c, d, a, b, GET(9) + ROUND2_CONSTANT, 9)
+	STEP(G, b, c, d, a, GET(13) + ROUND2_CONSTANT, 13)
+	STEP(G, a, b, c, d, GET(2) + ROUND2_CONSTANT, 3)
+	STEP(G, d, a, b, c, GET(6) + ROUND2_CONSTANT, 5)
+	STEP(G, c, d, a, b, GET(10) + ROUND2_CONSTANT, 9)
+	STEP(G, b, c, d, a, GET(14) + ROUND2_CONSTANT, 13)
+	STEP(G, a, b, c, d, GET(3) + ROUND2_CONSTANT, 3)
+	STEP(G, d, a, b, c, GET(7) + ROUND2_CONSTANT, 5)
+	STEP(G, c, d, a, b, GET(11) + ROUND2_CONSTANT, 9)
+	STEP(G, b, c, d, a, GET(15) + ROUND2_CONSTANT, 13)
 
 /* Round 3 */
-	STEP(H, a, b, c, d, GET(0) + 0x6ed9eba1, 3)
-	STEP(H2, d, a, b, c, GET(8) + 0x6ed9eba1, 9)
-	STEP(H, c, d, a, b, GET(4) + 0x6ed9eba1, 11)
-	STEP(H2, b, c, d, a, GET(12) + 0x6ed9eba1, 15)
-	STEP(H, a, b, c, d, GET(2) + 0x6ed9eba1, 3)
-	STEP(H2, d, a, b, c, GET(10) + 0x6ed9eba1, 9)
-	STEP(H, c, d, a, b, GET(6) + 0x6ed9eba1, 11)
-	STEP(H2, b, c, d, a, GET(14) + 0x6ed9eba1, 15)
-	STEP(H, a, b, c, d, GET(1) + 0x6ed9eba1, 3)
-	STEP(H2, d, a, b, c, GET(9) + 0x6ed9eba1, 9)
-	STEP(H, c, d, a, b, GET(5) + 0x6ed9eba1, 11)
-	STEP(H2, b, c, d, a, GET(13) + 0x6ed9eba1, 15)
-	STEP(H, a, b, c, d, GET(3) + 0x6ed9eba1, 3)
-	STEP(H2, d, a, b, c, GET(11) + 0x6ed9eba1, 9)
-	STEP(H, c, d, a, b, GET(7) + 0x6ed9eba1, 11)
-	STEP(H2, b, c, d, a, GET(15) + 0x6ed9eba1, 15)
+	STEP(H, a, b, c, d, GET(0) + ROUND3_CONSTANT, 3)
+	STEP(H2, d, a, b, c, GET(8) + ROUND3_CONSTANT, 9)
+	STEP(H, c, d, a, b, GET(4) + ROUND3_CONSTANT, 11)
+	STEP(H2, b, c, d, a, GET(12) + ROUND3_CONSTANT, 15)
+	STEP(H, a, b, c, d, GET(2) + ROUND3_CONSTANT, 3)
+	STEP(H2, d, a, b, c, GET(10) + ROUND3_CONSTANT, 9)
+	STEP(H, c, d, a, b, GET(6) + ROUND3_CONSTANT, 11)
+	STEP(H2, b, c, d, a, GET(14) + ROUND3_CONSTANT, 15)
+	STEP(H, a, b, c, d, GET(1) + ROUND3_CONSTANT, 3)
+	STEP(H2, d, a, b, c, GET(9) + ROUND3_CONSTANT, 9)
+	STEP(H, c, d, a, b, GET(5) + ROUND3_CONSTANT, 11)
+	STEP(H2, b, c, d, a, GET(13) + ROUND3_CONSTANT, 15)
+	STEP(H, a, b, c, d, GET(3) + ROUND3_CONSTANT, 3)
+	STEP(H2, d, a, b, c, GET(11) + ROUND3_CONSTANT, 9)
+	STEP(H, c, d, a, b, GET(7) + ROUND3_CONSTANT, 11)
+	STEP(H2, b, c, d, a, GET(15) + ROUND3_CONSTANT, 15)
 
 	a += saved_a;
 	b += saved_b;
@@ -206,9 +212,6 @@ void MD4_Update(MD4_CTX *ctx, const void *data, unsigned long size)
 		size -= free;
 		body(ctx, ctx->buffer);
 	}
-
-	
-
 	memcpy(ctx->buffer, data, size);
 }
 
