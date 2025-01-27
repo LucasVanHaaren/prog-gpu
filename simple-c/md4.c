@@ -207,6 +207,8 @@ void MD4_Update(MD4_CTX *ctx, const void *data, unsigned long size)
 		body(ctx, ctx->buffer);
 	}
 
+	
+
 	memcpy(ctx->buffer, data, size);
 }
 
