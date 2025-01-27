@@ -5,15 +5,22 @@
 #include "../includes/config.h"
 #include "md4.h"
 
+// OPTI : avoid compute too much times
+#define EXP (1024 * 1024 * 32)
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     fprintf(stderr, "Usage: %s HASH\n", argv[0]);
     return -1;
   }
+  
   unsigned char *target = parse_hash(argv[1]);
-  char *candidate = malloc(PWD_LEN + 1);
+  // OPTI : define stack-based buffer
+  char candidate[PWD_LEN + 1];
   memset(candidate, '!', PWD_LEN);
   candidate[PWD_LEN] = 0;
+  unsigned char digest[16];
+
   size_t tested = 0;
   struct timeval tval;
   double start;
@@ -21,19 +28,18 @@ int main(int argc, char **argv) {
 
   gettimeofday(&tval, NULL);
   start = tval.tv_sec + tval.tv_usec / 1000000.0;
+  
+  MD4_CTX ctx;
 
   do {
-    MD4_CTX ctx;
-    unsigned char res[16];
-    MD4_Init(&ctx);
     MD4_Update(&ctx, candidate, PWD_LEN);
-    MD4_Final(res, &ctx);
+    MD4_Final(digest, &ctx);
     tested++;
-    if (memcmp(res, target, 16) == 0) {
+    if (memcmp(digest, target, 16) == 0) {
       printf("found: %s, after %ld tries\n", candidate, tested);
       return 0;
     }
-    if (tested % (1024 * 1024 * 32) == 0) {
+    if (tested % EXP == 0) {
       gettimeofday(&tval, NULL);
       now = tval.tv_sec + tval.tv_usec / 1000000.0;
       double speed = tested / (now - start);

@@ -70,7 +70,10 @@
  * This processes one or more 64-byte data blocks, but does NOT update
  * the bit counters.  There are no alignment requirements.
  */
-static const void *body(MD4_CTX *ctx, const void *data, unsigned long size)
+
+#define BLOC_SIZE 64
+
+static const void *body(MD4_CTX *ctx, const void *data)
 {
 	unsigned const char *ptr;
 	MD4_u32plus a, b, c, d;
@@ -83,73 +86,71 @@ static const void *body(MD4_CTX *ctx, const void *data, unsigned long size)
 	c = ctx->C;
 	d = ctx->D;
 
-	do {
-		saved_a = a;
-		saved_b = b;
-		saved_c = c;
-		saved_d = d;
+	saved_a = a;
+	saved_b = b;
+	saved_c = c;
+	saved_d = d;
 
 /* Round 1 */
-		STEP(F, a, b, c, d, SET(0), 3)
-		STEP(F, d, a, b, c, SET(1), 7)
-		STEP(F, c, d, a, b, SET(2), 11)
-		STEP(F, b, c, d, a, SET(3), 19)
-		STEP(F, a, b, c, d, SET(4), 3)
-		STEP(F, d, a, b, c, SET(5), 7)
-		STEP(F, c, d, a, b, SET(6), 11)
-		STEP(F, b, c, d, a, SET(7), 19)
-		STEP(F, a, b, c, d, SET(8), 3)
-		STEP(F, d, a, b, c, SET(9), 7)
-		STEP(F, c, d, a, b, SET(10), 11)
-		STEP(F, b, c, d, a, SET(11), 19)
-		STEP(F, a, b, c, d, SET(12), 3)
-		STEP(F, d, a, b, c, SET(13), 7)
-		STEP(F, c, d, a, b, SET(14), 11)
-		STEP(F, b, c, d, a, SET(15), 19)
+	STEP(F, a, b, c, d, SET(0), 3)
+	STEP(F, d, a, b, c, SET(1), 7)
+	STEP(F, c, d, a, b, SET(2), 11)
+	STEP(F, b, c, d, a, SET(3), 19)
+	STEP(F, a, b, c, d, SET(4), 3)
+	STEP(F, d, a, b, c, SET(5), 7)
+	STEP(F, c, d, a, b, SET(6), 11)
+	STEP(F, b, c, d, a, SET(7), 19)
+	STEP(F, a, b, c, d, SET(8), 3)
+	STEP(F, d, a, b, c, SET(9), 7)
+	STEP(F, c, d, a, b, SET(10), 11)
+	STEP(F, b, c, d, a, SET(11), 19)
+	STEP(F, a, b, c, d, SET(12), 3)
+	STEP(F, d, a, b, c, SET(13), 7)
+	STEP(F, c, d, a, b, SET(14), 11)
+	STEP(F, b, c, d, a, SET(15), 19)
 
 /* Round 2 */
-		STEP(G, a, b, c, d, GET(0) + 0x5a827999, 3)
-		STEP(G, d, a, b, c, GET(4) + 0x5a827999, 5)
-		STEP(G, c, d, a, b, GET(8) + 0x5a827999, 9)
-		STEP(G, b, c, d, a, GET(12) + 0x5a827999, 13)
-		STEP(G, a, b, c, d, GET(1) + 0x5a827999, 3)
-		STEP(G, d, a, b, c, GET(5) + 0x5a827999, 5)
-		STEP(G, c, d, a, b, GET(9) + 0x5a827999, 9)
-		STEP(G, b, c, d, a, GET(13) + 0x5a827999, 13)
-		STEP(G, a, b, c, d, GET(2) + 0x5a827999, 3)
-		STEP(G, d, a, b, c, GET(6) + 0x5a827999, 5)
-		STEP(G, c, d, a, b, GET(10) + 0x5a827999, 9)
-		STEP(G, b, c, d, a, GET(14) + 0x5a827999, 13)
-		STEP(G, a, b, c, d, GET(3) + 0x5a827999, 3)
-		STEP(G, d, a, b, c, GET(7) + 0x5a827999, 5)
-		STEP(G, c, d, a, b, GET(11) + 0x5a827999, 9)
-		STEP(G, b, c, d, a, GET(15) + 0x5a827999, 13)
+	STEP(G, a, b, c, d, GET(0) + 0x5a827999, 3)
+	STEP(G, d, a, b, c, GET(4) + 0x5a827999, 5)
+	STEP(G, c, d, a, b, GET(8) + 0x5a827999, 9)
+	STEP(G, b, c, d, a, GET(12) + 0x5a827999, 13)
+	STEP(G, a, b, c, d, GET(1) + 0x5a827999, 3)
+	STEP(G, d, a, b, c, GET(5) + 0x5a827999, 5)
+	STEP(G, c, d, a, b, GET(9) + 0x5a827999, 9)
+	STEP(G, b, c, d, a, GET(13) + 0x5a827999, 13)
+	STEP(G, a, b, c, d, GET(2) + 0x5a827999, 3)
+	STEP(G, d, a, b, c, GET(6) + 0x5a827999, 5)
+	STEP(G, c, d, a, b, GET(10) + 0x5a827999, 9)
+	STEP(G, b, c, d, a, GET(14) + 0x5a827999, 13)
+	STEP(G, a, b, c, d, GET(3) + 0x5a827999, 3)
+	STEP(G, d, a, b, c, GET(7) + 0x5a827999, 5)
+	STEP(G, c, d, a, b, GET(11) + 0x5a827999, 9)
+	STEP(G, b, c, d, a, GET(15) + 0x5a827999, 13)
 
 /* Round 3 */
-		STEP(H, a, b, c, d, GET(0) + 0x6ed9eba1, 3)
-		STEP(H2, d, a, b, c, GET(8) + 0x6ed9eba1, 9)
-		STEP(H, c, d, a, b, GET(4) + 0x6ed9eba1, 11)
-		STEP(H2, b, c, d, a, GET(12) + 0x6ed9eba1, 15)
-		STEP(H, a, b, c, d, GET(2) + 0x6ed9eba1, 3)
-		STEP(H2, d, a, b, c, GET(10) + 0x6ed9eba1, 9)
-		STEP(H, c, d, a, b, GET(6) + 0x6ed9eba1, 11)
-		STEP(H2, b, c, d, a, GET(14) + 0x6ed9eba1, 15)
-		STEP(H, a, b, c, d, GET(1) + 0x6ed9eba1, 3)
-		STEP(H2, d, a, b, c, GET(9) + 0x6ed9eba1, 9)
-		STEP(H, c, d, a, b, GET(5) + 0x6ed9eba1, 11)
-		STEP(H2, b, c, d, a, GET(13) + 0x6ed9eba1, 15)
-		STEP(H, a, b, c, d, GET(3) + 0x6ed9eba1, 3)
-		STEP(H2, d, a, b, c, GET(11) + 0x6ed9eba1, 9)
-		STEP(H, c, d, a, b, GET(7) + 0x6ed9eba1, 11)
-		STEP(H2, b, c, d, a, GET(15) + 0x6ed9eba1, 15)
+	STEP(H, a, b, c, d, GET(0) + 0x6ed9eba1, 3)
+	STEP(H2, d, a, b, c, GET(8) + 0x6ed9eba1, 9)
+	STEP(H, c, d, a, b, GET(4) + 0x6ed9eba1, 11)
+	STEP(H2, b, c, d, a, GET(12) + 0x6ed9eba1, 15)
+	STEP(H, a, b, c, d, GET(2) + 0x6ed9eba1, 3)
+	STEP(H2, d, a, b, c, GET(10) + 0x6ed9eba1, 9)
+	STEP(H, c, d, a, b, GET(6) + 0x6ed9eba1, 11)
+	STEP(H2, b, c, d, a, GET(14) + 0x6ed9eba1, 15)
+	STEP(H, a, b, c, d, GET(1) + 0x6ed9eba1, 3)
+	STEP(H2, d, a, b, c, GET(9) + 0x6ed9eba1, 9)
+	STEP(H, c, d, a, b, GET(5) + 0x6ed9eba1, 11)
+	STEP(H2, b, c, d, a, GET(13) + 0x6ed9eba1, 15)
+	STEP(H, a, b, c, d, GET(3) + 0x6ed9eba1, 3)
+	STEP(H2, d, a, b, c, GET(11) + 0x6ed9eba1, 9)
+	STEP(H, c, d, a, b, GET(7) + 0x6ed9eba1, 11)
+	STEP(H2, b, c, d, a, GET(15) + 0x6ed9eba1, 15)
 
-		a += saved_a;
-		b += saved_b;
-		c += saved_c;
-		d += saved_d;
+	a += saved_a;
+	b += saved_b;
+	c += saved_c;
+	d += saved_d;
 
-		ptr += 64;
-	} while (size -= 64);
+	ptr += 64;
 
 	ctx->A = a;
 	ctx->B = b;
@@ -159,8 +160,22 @@ static const void *body(MD4_CTX *ctx, const void *data, unsigned long size)
 	return ptr;
 }
 
-void MD4_Init(MD4_CTX *ctx)
+// void MD4_Init(MD4_CTX *ctx)
+// {
+// 	ctx->A = 0x67452301;
+// 	ctx->B = 0xefcdab89;
+// 	ctx->C = 0x98badcfe;
+// 	ctx->D = 0x10325476;
+
+// 	ctx->lo = 0;
+// 	ctx->hi = 0;
+// }
+
+void MD4_Update(MD4_CTX *ctx, const void *data, unsigned long size)
 {
+	MD4_u32plus saved_lo;
+	unsigned long used, free;
+
 	ctx->A = 0x67452301;
 	ctx->B = 0xefcdab89;
 	ctx->C = 0x98badcfe;
@@ -168,14 +183,10 @@ void MD4_Init(MD4_CTX *ctx)
 
 	ctx->lo = 0;
 	ctx->hi = 0;
-}
 
-void MD4_Update(MD4_CTX *ctx, const void *data, unsigned long size)
-{
-	MD4_u32plus saved_lo;
-	unsigned long used, free;
-
-	saved_lo = ctx->lo;
+	saved_lo = 0; // toujours 0
+	// hi entre 6 et 12
+	// pour fiare une addition de 2 fois 32 bits 
 	if ((ctx->lo = (saved_lo + size) & 0x1fffffff) < saved_lo)
 		ctx->hi++;
 	ctx->hi += size >> 29;
@@ -193,12 +204,7 @@ void MD4_Update(MD4_CTX *ctx, const void *data, unsigned long size)
 		memcpy(&ctx->buffer[used], data, free);
 		data = (unsigned char *)data + free;
 		size -= free;
-		body(ctx, ctx->buffer, 64);
-	}
-
-	if (size >= 64) {
-		data = body(ctx, data, size & ~(unsigned long)0x3f);
-		size &= 0x3f;
+		body(ctx, ctx->buffer);
 	}
 
 	memcpy(ctx->buffer, data, size);
@@ -210,13 +216,13 @@ void MD4_Final(unsigned char *result, MD4_CTX *ctx)
 
 	used = ctx->lo & 0x3f;
 
-	ctx->buffer[used++] = 0x80;
+	ctx->buffer[used++] = 0x80; // octet de padding
 
 	free = 64 - used;
 
 	if (free < 8) {
 		memset(&ctx->buffer[used], 0, free);
-		body(ctx, ctx->buffer, 64);
+		body(ctx, ctx->buffer);
 		used = 0;
 		free = 64;
 	}
@@ -233,7 +239,7 @@ void MD4_Final(unsigned char *result, MD4_CTX *ctx)
 	ctx->buffer[62] = ctx->hi >> 16;
 	ctx->buffer[63] = ctx->hi >> 24;
 
-	body(ctx, ctx->buffer, 64);
+	body(ctx, ctx->buffer);
 
 	result[0] = ctx->A;
 	result[1] = ctx->A >> 8;
